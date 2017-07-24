@@ -35,6 +35,7 @@ public class JavaDoc2MarkdownConverterTest {
 			"    | data 1   | data 2   |\n" +
 			"\n" +
 			"\n" +
+			"x<sup>x+1</sup>. x<sub>i+1</sub>\n"   +
 			"literally <b>literal</b> and now a list:\n" +
 			"\n" +
 			" *  **Coffee**\n" +
@@ -89,6 +90,7 @@ public class JavaDoc2MarkdownConverterTest {
 	 * </tr>
 	 * </tbody>
 	 * </table>
+	 * <br>x<sup>x+1</sup>. x<sub>i+1</sub>
 	 * <br>
 	 * {@literal <b>literal</b>} and now a list:
 	 * <ul><li><b>Coffee</b>
@@ -129,6 +131,7 @@ public class JavaDoc2MarkdownConverterTest {
 					"  <thead><tr><th>header 1</th><th>header 2</th></tr></thead>\n" +
 					"  <tbody><tr><td>data 1</td><td>data 2</td></tr></tbody>\n" +
 					"  </table>\n"+
+					"<br>x<sup>x+1</sup>. x<sub>i+1</sub>" +
 					"<br> literally {@literal <b>literal</b>} and now a list:\n"+
 					"  <ul>"
 					+ "<li><b>Coffee</b>" +

@@ -14,6 +14,8 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 
+import com.google.common.collect.Sets;
+import com.overzealous.remark.IgnoredHtmlElement;
 import com.overzealous.remark.Options;
 import com.overzealous.remark.Options.Tables;
 import com.overzealous.remark.Remark;
@@ -36,6 +38,7 @@ public class JavaDoc2MarkdownConverter {
 		options.inlineLinks = true;
 		options.autoLinks = true;
 		options.reverseHtmlSmartPunctuation = true;
+		options.ignoredHtmlElements = Sets.newHashSet(IgnoredHtmlElement.create("sup"), IgnoredHtmlElement.create("sub"));
 		remark = new Remark(options);
 	}
 
