@@ -52,8 +52,8 @@ public class JVMConfigurator implements IVMInstallChangedListener {
 			File jvmHome = new File(javaHome);
 			if (jvmHome.isDirectory()) {
 				IVMInstall defaultVM = JavaRuntime.getDefaultVMInstall();
-				File location = defaultVM.getInstallLocation();
-				if (!location.equals(jvmHome)) {
+				File location = (defaultVM != null) ? defaultVM.getInstallLocation() : null;
+				if (location == null || !location.equals(jvmHome)) {
 					IVMInstall vm = findVM(jvmHome);
 					if (vm == null) {
 						IVMInstallType installType = JavaRuntime.getVMInstallType(StandardVMType.ID_STANDARD_VM_TYPE);
