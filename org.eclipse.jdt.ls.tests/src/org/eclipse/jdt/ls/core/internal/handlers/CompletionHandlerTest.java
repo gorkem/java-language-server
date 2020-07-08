@@ -944,9 +944,9 @@ public class CompletionHandlerTest extends AbstractCompilationUnitBasedTest {
 			"src/org/sample/Test.java",
 			"package org.sample;\n" +
 			"public class Test {\n" +
-			"	public void testMethod() {\n" +
-			"		sysout" +
-			"	}\n" +
+			"  public void testMethod() {\n" +
+			"    sysout" +
+			"  }\n" +
 			"}"
 		);
 		//@formatter:on
@@ -955,9 +955,170 @@ public class CompletionHandlerTest extends AbstractCompilationUnitBasedTest {
 
 		assertNotNull(list);
 
-		List<CompletionItem> items = new ArrayList<>(list.getItems());
+		List<CompletionItem> items = list.getItems();
 		CompletionItem item = items.get(0);
 		assertEquals("sysout", item.getLabel());
+		String insertText = item.getInsertText();
+		assertEquals("System.out.println(${0});", insertText);
+	}
+
+	@Test
+	public void testSnippet_sysoutv() throws JavaModelException {
+		//@formatter:off
+		ICompilationUnit unit = getWorkingCopy(
+			"src/org/sample/Test.java",
+			"package org.sample;\n" +
+			"public class Test {\n" +
+			"  public void testMethod() {\n" +
+			"    int notThisOne = 1;\n"+
+			"    String orThisOne = null;\n"+
+			"    int foo = 0;\n"+
+			"    sysoutv" +
+			"  }\n" +
+			"}"
+		);
+		//@formatter:on
+		int[] loc = findCompletionLocation(unit, "sysoutv");
+		CompletionList list = server.completion(JsonMessageHelper.getParams(createCompletionRequest(unit, loc[0], loc[1]))).join().getRight();
+
+		assertNotNull(list);
+		assertFalse("No snippets found!", list.getItems().isEmpty());
+
+		List<CompletionItem> items = list.getItems();
+		CompletionItem item = items.get(0);
+		assertEquals("sysoutv", item.getLabel());
+		String insertText = item.getInsertText();
+		assertEquals("System.out.println(\"foo = \" + foo${0});", insertText);
+	}
+
+	@Test
+	public void testSnippet_sysoutv_boolean() throws JavaModelException {
+		//@formatter:off
+		ICompilationUnit unit = getWorkingCopy(
+			"src/org/sample/Test.java",
+			"package org.sample;\n" +
+			"public class Test {\n" +
+			"  public void testMethod() {\n" +
+			"    int z = 1;\n"+
+			"    String a = null;\n"+
+			"    boolean foo = true;\n"+
+			"    sysoutv" +
+			"  }\n" +
+			"}"
+		);
+		//@formatter:on
+		int[] loc = findCompletionLocation(unit, "sysoutv");
+		CompletionList list = server.completion(JsonMessageHelper.getParams(createCompletionRequest(unit, loc[0], loc[1]))).join().getRight();
+
+		assertNotNull(list);
+		assertFalse("No snippets found!", list.getItems().isEmpty());
+
+		List<CompletionItem> items = list.getItems();
+		CompletionItem item = items.get(0);
+		assertEquals("sysoutv", item.getLabel());
+		String insertText = item.getInsertText();
+		assertEquals("System.out.println(\"foo = \" + foo${0});", insertText);
+	}
+
+	@Test
+	public void testSnippet_sysoutv_noVar() throws JavaModelException {
+		//@formatter:off
+		ICompilationUnit unit = getWorkingCopy(
+			"src/org/sample/Test.java",
+			"package org.sample;\n" +
+			"public class Test {\n" +
+			"  private String foo = null;\n"+
+			"  public void testMethod() {\n" +
+			"    sysoutv" +
+			"  }\n" +
+			"}"
+		);
+		//@formatter:on
+		int[] loc = findCompletionLocation(unit, "sysoutv");
+		CompletionList list = server.completion(JsonMessageHelper.getParams(createCompletionRequest(unit, loc[0], loc[1]))).join().getRight();
+
+		assertNotNull(list);
+
+		List<CompletionItem> items = list.getItems();
+		CompletionItem item = items.get(0);
+		assertEquals("sysoutv", item.getLabel());
+		String insertText = item.getInsertText();
+		assertEquals("System.out.println(${0});", insertText);
+	}
+
+	@Test
+	public void testSnippet_sysoutv_params() throws JavaModelException {
+		//@formatter:off
+		ICompilationUnit unit = getWorkingCopy(
+			"src/org/sample/Test.java",
+			"package org.sample;\n" +
+			"public class Test {\n" +
+			"  public void testMethod(int meh) {\n" +
+			"    sysoutv" +
+			"  }\n" +
+			"}"
+		);
+		//@formatter:on
+		int[] loc = findCompletionLocation(unit, "sysoutv");
+		CompletionList list = server.completion(JsonMessageHelper.getParams(createCompletionRequest(unit, loc[0], loc[1]))).join().getRight();
+
+		assertNotNull(list);
+
+		List<CompletionItem> items = list.getItems();
+		CompletionItem item = items.get(0);
+		assertEquals("sysoutv", item.getLabel());
+		String insertText = item.getInsertText();
+		assertEquals("System.out.println(\"meh = \" + meh${0});", insertText);
+	}
+
+	@Test
+	public void testSnippet_sysoutp() throws JavaModelException {
+		//@formatter:off
+		ICompilationUnit unit = getWorkingCopy(
+			"src/org/sample/Test.java",
+			"package org.sample;\n" +
+			"public class Test {\n" +
+			"  public void testMethod(int foo, String bar) {\n" +
+			"    String woot = null;\n" +
+			"    sysoutp" +
+			"  }\n" +
+			"}"
+		);
+		//@formatter:on
+		int[] loc = findCompletionLocation(unit, "sysoutp");
+		CompletionList list = server.completion(JsonMessageHelper.getParams(createCompletionRequest(unit, loc[0], loc[1]))).join().getRight();
+
+		assertNotNull(list);
+
+		List<CompletionItem> items = list.getItems();
+		CompletionItem item = items.get(0);
+		assertEquals("sysoutp", item.getLabel());
+		String insertText = item.getInsertText();
+		assertEquals("System.out.println(${0}\"foo = \" + foo + \", bar = \" + bar);", insertText);
+	}
+
+	@Test
+	public void testSnippet_sysoutp_noparam() throws JavaModelException {
+		//@formatter:off
+		ICompilationUnit unit = getWorkingCopy(
+			"src/org/sample/Test.java",
+			"package org.sample;\n" +
+			"public class Test {\n" +
+			"  public void testMethod() {\n" +
+			"    String woot = null\n;" +
+			"    sysoutp" +
+			"  }\n" +
+			"}"
+		);
+		//@formatter:on
+		int[] loc = findCompletionLocation(unit, "sysoutp");
+		CompletionList list = server.completion(JsonMessageHelper.getParams(createCompletionRequest(unit, loc[0], loc[1]))).join().getRight();
+
+		assertNotNull(list);
+
+		List<CompletionItem> items = list.getItems();
+		CompletionItem item = items.get(0);
+		assertEquals("sysoutp", item.getLabel());
 		String insertText = item.getInsertText();
 		assertEquals("System.out.println(${0});", insertText);
 	}
