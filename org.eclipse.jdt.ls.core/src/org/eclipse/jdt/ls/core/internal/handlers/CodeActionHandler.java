@@ -24,26 +24,33 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
+import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaModelMarker;
+import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.formatter.DefaultCodeFormatterConstants;
 import org.eclipse.jdt.core.manipulation.CoreASTProvider;
+import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
+import org.eclipse.jdt.internal.compiler.problem.ProblemReporter;
 import org.eclipse.jdt.internal.ui.text.correction.IProblemLocationCore;
 import org.eclipse.jdt.internal.ui.text.correction.ProblemLocationCore;
 import org.eclipse.jdt.ls.core.internal.ChangeUtil;
 import org.eclipse.jdt.ls.core.internal.JDTUtils;
 import org.eclipse.jdt.ls.core.internal.JavaCodeActionKind;
 import org.eclipse.jdt.ls.core.internal.JavaLanguageServerPlugin;
+import org.eclipse.jdt.ls.core.internal.ProjectUtils;
+import org.eclipse.jdt.ls.core.internal.corext.refactoring.nls.changes.CreateFileChange;
 import org.eclipse.jdt.ls.core.internal.corrections.DiagnosticsHelper;
 import org.eclipse.jdt.ls.core.internal.corrections.InnovationContext;
 import org.eclipse.jdt.ls.core.internal.corrections.QuickFixProcessor;
 import org.eclipse.jdt.ls.core.internal.corrections.RefactorProcessor;
 import org.eclipse.jdt.ls.core.internal.corrections.proposals.ChangeCorrectionProposal;
+import org.eclipse.jdt.ls.core.internal.corrections.proposals.IProposalRelevance;
 import org.eclipse.jdt.ls.core.internal.preferences.PreferenceManager;
 import org.eclipse.jdt.ls.core.internal.preferences.Preferences;
 import org.eclipse.jdt.ls.core.internal.text.correction.AssignToVariableAssistCommandProposal;
@@ -61,6 +68,10 @@ import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.WorkspaceEdit;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
+import org.eclipse.ltk.core.refactoring.Change;
+import org.eclipse.ltk.core.refactoring.CompositeChange;
+import org.eclipse.ltk.core.refactoring.TextFileChange;
+import org.eclipse.text.edits.InsertEdit;
 
 public class CodeActionHandler {
 	public static final ResponseStore<Either<ChangeCorrectionProposal, CodeActionProposal>> codeActionStore
@@ -157,6 +168,8 @@ public class CodeActionHandler {
 			try {
 				codeActions.addAll(nonProjectFixProcessor.getCorrections(params, context, locations));
 				List<ChangeCorrectionProposal> quickfixProposals = this.quickFixProcessor.getCorrections(context, locations);
+				List<ChangeCorrectionProposal> ignoreCompilerProblemProposals = getIgnoreCompilerProblemProposals(unit, diagnostics);
+				quickfixProposals.addAll(ignoreCompilerProblemProposals);
 				quickfixProposals.sort(comparator);
 				proposals.addAll(quickfixProposals);
 			} catch (CoreException e) {
@@ -191,6 +204,7 @@ public class CodeActionHandler {
 		if (monitor.isCanceled()) {
 			return Collections.emptyList();
 		}
+
 		try {
 			for (ChangeCorrectionProposal proposal : proposals) {
 				Optional<Either<Command, CodeAction>> codeActionFromProposal = getCodeActionFromProposal(proposal, params.getContext());
@@ -213,6 +227,43 @@ public class CodeActionHandler {
 
 		populateDataFields(codeActions);
 		return codeActions;
+	}
+
+	private List<ChangeCorrectionProposal> getIgnoreCompilerProblemProposals(ICompilationUnit unit, List<Diagnostic> diagnostics) {
+		List<ChangeCorrectionProposal> result = new ArrayList<>();
+		String label = "Ignore this compiler problem";
+
+		for (Diagnostic diag : diagnostics) {
+			int problemId = getProblemId(diag);
+			int irritant = ProblemReporter.getIrritant(problemId);
+			if (irritant != 0) {
+				String compilerOption = CompilerOptions.optionKeyFromIrritant(irritant);
+				if (compilerOption != null) {
+					IJavaProject proj = unit.getJavaProject();
+					IFile settingsFile = proj.getProject().getFolder(ProjectUtils.WORKSPACE_LINK).getFolder(ProjectUtils.SETTINGS).getFile("org.eclipse.jdt.core.prefs");
+
+					String ignoreEntry = compilerOption + "=" + JavaCore.IGNORE + "\n";
+
+					Change change;
+					TextFileChange editChange = new TextFileChange(label, settingsFile);
+					InsertEdit edit = new InsertEdit(0, ignoreEntry);
+					editChange.setEdit(edit);
+					if (settingsFile.exists()) {
+						change = editChange;
+					} else {
+						Change createChange = new CreateFileChange(settingsFile.getLocation(), ignoreEntry, null);
+						CompositeChange comp = new CompositeChange(label);
+						comp.add(createChange);
+						comp.add(editChange);
+						change = comp;
+					}
+					ChangeCorrectionProposal proposal = new ChangeCorrectionProposal(label, CodeActionKind.QuickFix, change, IProposalRelevance.ADD_SUPPRESSWARNINGS);
+					result.add(proposal);
+				}
+			}
+		}
+
+		return result;
 	}
 
 	private void populateDataFields(List<Either<Command, CodeAction>> codeActions) {
