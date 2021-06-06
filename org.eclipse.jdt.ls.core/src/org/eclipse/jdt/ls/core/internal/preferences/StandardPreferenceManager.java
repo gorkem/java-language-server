@@ -83,7 +83,18 @@ public class StandardPreferenceManager extends PreferenceManager {
 				getMavenConfiguration().setGlobalSettingsFile(newMavenGlobalSettings);
 			} catch (CoreException e) {
 				JavaLanguageServerPlugin.logException("failed to set Maven global settings", e);
-				preferences.setMavenUserSettings(oldMavenSettings);
+				preferences.setMavenGlobalSettings(oldMavenGlobalSettings);
+			}
+		}
+
+		String newWorkspaceLifecycleMappingMetadata = preferences.getWorkspaceLifecycleMappingMetadataFile();
+		String oldWorkspaceLifecycleMappingMetadata = getMavenConfiguration().getWorkspaceLifecycleMappingMetadataFile();
+		if (!Objects.equals(newWorkspaceLifecycleMappingMetadata, oldWorkspaceLifecycleMappingMetadata)) {
+			try {
+				getMavenConfiguration().setWorkspaceLifecycleMappingMetadataFile(newWorkspaceLifecycleMappingMetadata);
+			} catch (CoreException e) {
+				JavaLanguageServerPlugin.logException("failed to set Maven workspace lifecycle mapping metadata", e);
+				preferences.setWorkspaceLifecycleMappingMetadataFile(oldWorkspaceLifecycleMappingMetadata);
 			}
 		}
 
