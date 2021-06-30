@@ -159,7 +159,7 @@ public class DocumentLifeCycleHandlerTest extends AbstractProjectsManagerBasedTe
 		ICompilationUnit cu = pack1.createCompilationUnit("E.java", buf.toString(), false, null);
 
 		List<Either<Command, CodeAction>> codeActions = getCodeActions(cu);
-		assertEquals(codeActions.size(), 1);
+		assertEquals(codeActions.size(), 2);
 		assertEquals(codeActions.get(0).getRight().getKind(), CodeActionKind.QuickFix);
 	}
 
@@ -596,7 +596,7 @@ public class DocumentLifeCycleHandlerTest extends AbstractProjectsManagerBasedTe
 		Diagnostic d = diagParam.getDiagnostics().get(0);
 		assertEquals("Foo.java is a non-project file, only syntax errors are reported", d.getMessage());
 		assertRange(0, 0, 1, d.getRange());
-		
+
 		d = diagParam.getDiagnostics().get(1);
 		assertEquals("Cannot use this in a static context", d.getMessage());
 		assertRange(3, 21, 25, d.getRange());

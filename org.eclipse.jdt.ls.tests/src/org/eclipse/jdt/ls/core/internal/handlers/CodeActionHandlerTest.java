@@ -26,6 +26,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaProject;
@@ -56,6 +57,9 @@ import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
+import org.eclipse.lsp4j.ResourceOperation;
+import org.eclipse.lsp4j.ResourceOperationKind;
+import org.eclipse.lsp4j.TextDocumentEdit;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.WorkspaceEdit;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
@@ -114,7 +118,8 @@ public class CodeActionHandlerTest extends AbstractCompilationUnitBasedTest {
 		Assert.assertTrue(codeActions.size() >= 3);
 		Assert.assertEquals(codeActions.get(0).getRight().getKind(), CodeActionKind.QuickFix);
 		Assert.assertEquals(codeActions.get(1).getRight().getKind(), CodeActionKind.QuickFix);
-		Assert.assertEquals(codeActions.get(2).getRight().getKind(), CodeActionKind.SourceOrganizeImports);
+		Assert.assertEquals(codeActions.get(2).getRight().getKind(), CodeActionKind.QuickFix);
+		Assert.assertEquals(codeActions.get(3).getRight().getKind(), CodeActionKind.SourceOrganizeImports);
 		Command c = codeActions.get(0).getRight().getCommand();
 		Assert.assertEquals(CodeActionHandler.COMMAND_ID_APPLY_EDIT, c.getCommand());
 	}
@@ -477,7 +482,8 @@ public class CodeActionHandlerTest extends AbstractCompilationUnitBasedTest {
 		Assert.assertTrue(codeActions.size() >= 3);
 		Assert.assertEquals(codeActions.get(0).getRight().getKind(), CodeActionKind.QuickFix);
 		Assert.assertEquals(codeActions.get(1).getRight().getKind(), CodeActionKind.QuickFix);
-		Assert.assertEquals(codeActions.get(2).getRight().getKind(), CodeActionKind.SourceOrganizeImports);
+		Assert.assertEquals(codeActions.get(2).getRight().getKind(), CodeActionKind.QuickFix);
+		Assert.assertEquals(codeActions.get(3).getRight().getKind(), CodeActionKind.SourceOrganizeImports);
 		Command c = codeActions.get(0).getRight().getCommand();
 		Assert.assertEquals(CodeActionHandler.COMMAND_ID_APPLY_EDIT, c.getCommand());
 	}
@@ -547,6 +553,46 @@ public class CodeActionHandlerTest extends AbstractCompilationUnitBasedTest {
 		builder.append("	}\n");
 		builder.append("}\n");
 		AbstractSourceTestCase.compareSource(builder.toString(), actual);
+	}
+
+	@Test
+	public void testCodeAction_ignoreCompilerIssue() throws Exception{
+		when(clientPreferences.isResourceOperationSupported()).thenReturn(true);
+
+		ICompilationUnit unit = getWorkingCopy(
+				"src/java/Foo.java",
+				"package java;\n"
+				+ "public class Foo {\n"
+				+ "  @SuppressWarnings(\"deprecation\")\n"
+				+ "  public void test () {\n"
+				+ "  }\n"
+				+ "}");
+
+		CodeActionParams params = new CodeActionParams();
+		params.setTextDocument(new TextDocumentIdentifier(JDTUtils.toURI(unit)));
+		final Range range = CodeActionUtil.getRange(unit, "deprecation");
+		params.setRange(range);
+		params.setContext(new CodeActionContext(Arrays.asList(getDiagnostic(Integer.toString(IProblem.UnusedWarningToken), range))));
+		List<Either<Command, CodeAction>> codeActions = getCodeActions(params);
+
+		Assert.assertNotNull(codeActions);
+		Assert.assertFalse(codeActions.isEmpty());
+		Assert.assertEquals(codeActions.get(0).getRight().getKind(), CodeActionKind.QuickFix);
+		Command c = codeActions.get(0).getRight().getCommand();
+		Assert.assertEquals(CodeActionHandler.COMMAND_ID_APPLY_EDIT, c.getCommand());
+
+		IFile settingsFile = unit.getJavaProject().getProject().getFolder(ProjectUtils.WORKSPACE_LINK).getFolder(ProjectUtils.SETTINGS).getFile("org.eclipse.jdt.core.prefs");
+		Assert.assertNotNull(c.getArguments());
+		Assert.assertTrue(c.getArguments().get(0) instanceof WorkspaceEdit);
+		WorkspaceEdit we = (WorkspaceEdit) c.getArguments().get(0);
+		Assert.assertEquals(2, we.getDocumentChanges().size());
+
+		ResourceOperation createFile = we.getDocumentChanges().get(0).getRight();
+		Assert.assertEquals(ResourceOperationKind.Create, createFile.getKind());
+
+		TextDocumentEdit textDocEdit = we.getDocumentChanges().get(1).getLeft();
+		Assert.assertEquals(JDTUtils.getFileURI(settingsFile), textDocEdit.getTextDocument().getUri());
+		Assert.assertEquals("org.eclipse.jdt.core.compiler.problem.unusedWarningToken=ignore\n", textDocEdit.getEdits().get(0).getNewText());
 	}
 
 	private List<Either<Command, CodeAction>> getCodeActions(CodeActionParams params) {

@@ -13,6 +13,7 @@
 package org.eclipse.jdt.ls.core.internal;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +22,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
+import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.NullProgressMonitor;
@@ -63,6 +65,7 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.ltk.core.refactoring.Change;
 import org.eclipse.ltk.core.refactoring.CompositeChange;
 import org.eclipse.ltk.core.refactoring.TextChange;
+import org.eclipse.ltk.core.refactoring.TextFileChange;
 import org.eclipse.ltk.core.refactoring.resource.ResourceChange;
 import org.eclipse.text.edits.InsertEdit;
 import org.eclipse.text.edits.TextEdit;
@@ -251,16 +254,45 @@ public class ChangeUtil {
 
 	private static void convertTextChange(TextChange textChange, WorkspaceEdit rootEdit) {
 		Object modifiedElement = textChange.getModifiedElement();
-		if (!(modifiedElement instanceof IJavaElement)) {
-			return;
-		}
 
 		TextEdit textEdits = textChange.getEdit();
 		if (textEdits == null) {
 			return;
 		}
-		ICompilationUnit compilationUnit = (ICompilationUnit) ((IJavaElement) modifiedElement).getAncestor(IJavaElement.COMPILATION_UNIT);
-		convertTextEdit(rootEdit, compilationUnit, textEdits);
+
+		if (!(modifiedElement instanceof IJavaElement)) {
+			TextEdit edit = textChange.getEdit();
+			if (textChange instanceof TextFileChange && edit instanceof InsertEdit) {
+				IFile file = ((TextFileChange) textChange).getFile();
+				String fileUri = JDTUtils.getFileURI(file);
+
+				InsertEdit insertEdit = (InsertEdit) edit;
+				org.eclipse.lsp4j.TextEdit te = new org.eclipse.lsp4j.TextEdit();
+				te.setNewText(insertEdit.getText());
+				Position pos = new Position(0, 0);
+				te.setRange(new Range(pos, pos));
+
+				if (JavaLanguageServerPlugin.getPreferencesManager().getClientPreferences().isResourceOperationSupported()) {
+					List<Either<TextDocumentEdit, ResourceOperation>> changes = rootEdit.getDocumentChanges();
+					if (changes == null) {
+						changes = new ArrayList<>();
+						rootEdit.setDocumentChanges(changes);
+					}
+
+					VersionedTextDocumentIdentifier identifier = new VersionedTextDocumentIdentifier(fileUri, null);
+					TextDocumentEdit documentEdit = new TextDocumentEdit(identifier, Arrays.asList(te));
+					changes.add(Either.forLeft(documentEdit));
+				} else {
+					Map<String, List<org.eclipse.lsp4j.TextEdit>> changes = rootEdit.getChanges();
+					List<org.eclipse.lsp4j.TextEdit> edits = new ArrayList<>();
+					edits.add(te);
+					changes.put(fileUri, edits);
+				}
+			}
+		} else {
+			ICompilationUnit compilationUnit = (ICompilationUnit) ((IJavaElement) modifiedElement).getAncestor(IJavaElement.COMPILATION_UNIT);
+			convertTextEdit(rootEdit, compilationUnit, textEdits);
+		}
 	}
 
 	private static void convertTextEdit(WorkspaceEdit root, ICompilationUnit unit, TextEdit edit) {
