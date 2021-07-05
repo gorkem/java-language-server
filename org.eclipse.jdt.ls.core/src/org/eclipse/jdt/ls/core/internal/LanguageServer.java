@@ -12,8 +12,12 @@
  *******************************************************************************/
 package org.eclipse.jdt.ls.core.internal;
 
+import java.io.File;
+
+import org.eclipse.core.runtime.Platform;
 import org.eclipse.equinox.app.IApplication;
 import org.eclipse.equinox.app.IApplicationContext;
+import org.eclipse.osgi.service.datalocation.Location;
 
 public class LanguageServer implements IApplication {
 
@@ -23,6 +27,15 @@ public class LanguageServer implements IApplication {
 
 	@Override
 	public Object start(IApplicationContext context) throws Exception {
+
+		Location instanceLoc = Platform.getInstanceLocation();
+		if (!instanceLoc.lock()) {
+			File workspaceFile = new File(instanceLoc.getURL().getFile());
+			if (workspaceFile.exists()) {
+				JavaLanguageServerPlugin.logError("Could not launch the server because associated workspace is currently in use by another Java LS server.");
+			}
+			return Integer.valueOf(1);
+		}
 
     JavaLanguageServerPlugin.startLanguageServer(this);
     synchronized(waitLock){
