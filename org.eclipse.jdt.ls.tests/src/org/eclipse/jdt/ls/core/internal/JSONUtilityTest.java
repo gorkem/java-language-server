@@ -15,7 +15,11 @@ package org.eclipse.jdt.ls.core.internal;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import org.eclipse.lsp4j.Position;
 import org.junit.Test;
@@ -52,6 +56,23 @@ public class JSONUtilityTest {
 	@Test
 	public void testNullObject(){
 		assertNull(JSONUtility.toModel(null, Object.class));
+	}
+
+	private static class Options {
+		public String option1;
+		public String option2;
+	}
+
+	@Test
+	public void testMap() {
+		Map<String, Object> map = new HashMap<>();
+		map.put("option1", "value1");
+		map.put("option2", "value2");
+
+		Options options = JSONUtility.toModel(map, Options.class);
+		assertNotNull(options);
+		assertEquals(options.option1, "value1");
+		assertEquals(options.option2, "value2");
 	}
 
 }
