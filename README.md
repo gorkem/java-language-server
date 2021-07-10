@@ -90,6 +90,12 @@ java -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=1044 -Declips
 
 9. Notes on jar versions: the full name of the build jar file above, `org.eclipse.equinox.launcher_1.4.0.v20161219-1356.jar`, may change incrementally as the project version changes. If java complains about jar not found, then look for the latest version of the `org.eclipse.equinox.launcher_*` jar in the `/org.eclipse.jdt.ls.product/target/repository/plugins` directory and replace it in the command after the `-jar`
 
+Customize compiler option and code assits 
+------------------------------------------
+You could customize compiler options and code assists of the server.
+
+Under your project folder, modify the file .settings/org.eclipse.jdt.core.prefs with options presented at https://help.eclipse.org/neon/topic/org.eclipse.jdt.doc.isv/reference/api/org/eclipse/jdt/core/JavaCore.html .
+
 Managing connection types
 -------------------------
 The Java Language server supports sockets, named pipes, and standard streams of the server process
