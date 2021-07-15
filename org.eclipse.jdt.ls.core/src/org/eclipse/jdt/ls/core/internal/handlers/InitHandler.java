@@ -14,6 +14,8 @@
  *******************************************************************************/
 package org.eclipse.jdt.ls.core.internal.handlers;
 
+import static org.eclipse.jdt.ls.core.internal.JavaLanguageServerPlugin.logException;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -33,6 +35,7 @@ import org.eclipse.core.runtime.SubMonitor;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jdt.ls.core.internal.JavaClientConnection;
 import org.eclipse.jdt.ls.core.internal.JavaLanguageServerPlugin;
+import org.eclipse.jdt.ls.core.internal.JobHelpers;
 import org.eclipse.jdt.ls.core.internal.ServiceStatus;
 import org.eclipse.jdt.ls.core.internal.managers.ProjectsManager;
 import org.eclipse.jdt.ls.core.internal.preferences.PreferenceManager;
@@ -223,6 +226,12 @@ final public class InitHandler extends BaseInitHandler {
 		};
 		job.setPriority(Job.BUILD);
 		job.setRule(ResourcesPlugin.getWorkspace().getRoot());
+		try {
+			// a workaround for https://github.com/redhat-developer/vscode-java/issues/2020
+			JobHelpers.waitForBuildJobs(2 * 60 * 1000); // 2 minutes
+		} catch (OperationCanceledException e) {
+			logException(e.getMessage(), e);
+		}
 		job.schedule();
 	}
 }
